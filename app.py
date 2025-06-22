@@ -3,7 +3,8 @@ from scanner import perform_full_audit
 import traceback
 import os
 
-app = Flask(__name__)
+# Point Flask to the 'templates' directory
+app = Flask(__name__, template_folder="templates")
 
 @app.route("/", methods=["GET"])
 def home():
@@ -14,7 +15,7 @@ def scan():
     try:
         if not request.is_json:
             return jsonify({"error": "Request must contain JSON data"}), 400
-        
+
         data = request.get_json()
         url = data.get("url", "").strip()
         if not url:
@@ -36,7 +37,7 @@ def not_found(error):
 def internal_error(error):
     return jsonify({"error": "Internal server error"}), 500
 
-
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))  # default to 8080
+    # Required for Cloud Run
+    port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
