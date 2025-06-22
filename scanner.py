@@ -86,7 +86,7 @@ def pubsub_entry(event, context):
 
         # Save to Cloud Storage
         storage_client = storage.Client()
-        bucket = storage_client.bucket("YOUR_BUCKET_NAME")  # 🔁 Replace with your bucket name
+        bucket = storage_client.bucket("security-audit-portal")  # 🔁 Replace with your bucket name
 
         domain_clean = urlparse(url).netloc.replace('.', '_').replace(':', '_')
         timestamp = datetime.utcnow().strftime('%Y-%m-%dT%H-%M-%S')
