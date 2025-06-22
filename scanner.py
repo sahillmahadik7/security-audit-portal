@@ -1,17 +1,20 @@
-import base64
-import json
 import requests
 import socket
 import validators
 from urllib.parse import urlparse
-from google.cloud import storage
 from datetime import datetime
+import json
+import os
 
+from google.cloud import storage, pubsub_v1
 
-# --- Audit Functions ---
+# Constants (use these names in GCP)
+BUCKET_NAME = "security-audit-portal"
+TOPIC_NAME = "security-audit-portal"
+PROJECT_ID = os.environ.get("GCP_PROJECT", "security-audit-portal")  # Replace in GCP UI
+
 def check_https(url):
     return url.startswith("https://")
-
 
 def check_headers(url):
     required_headers = ['Content-Security-Policy', 'X-Frame-Options']
@@ -28,7 +31,6 @@ def check_headers(url):
     except Exception as e:
         return {"error": f"Unexpected error: {str(e)}"}
 
-
 def check_open_ports(domain, ports=[80, 443, 21, 22]):
     open_ports = []
     for port in ports:
@@ -39,11 +41,25 @@ def check_open_ports(domain, ports=[80, 443, 21, 22]):
             pass
     return open_ports
 
-
 def detect_cloud_storage(url):
     indicators = ["s3.amazonaws.com", "storage.googleapis.com", "blob.core.windows.net"]
     return any(indicator in url for indicator in indicators)
 
+def upload_report_to_gcs(data, url):
+    timestamp = datetime.utcnow().strftime('%Y-%m-%dT%H-%M-%SZ')
+    parsed = urlparse(url)
+    filename = f"scan_reports/{timestamp}_{parsed.netloc}.json"
+    
+    client = storage.Client()
+    bucket = client.bucket(BUCKET_NAME)
+    blob = bucket.blob(filename)
+    blob.upload_from_string(json.dumps(data, indent=2), content_type='application/json')
+    return filename
+
+def publish_to_pubsub(message_dict):
+    publisher = pubsub_v1.PublisherClient()
+    topic_path = publisher.topic_path(PROJECT_ID, TOPIC_NAME)
+    publisher.publish(topic_path, json.dumps(message_dict).encode("utf-8"))
 
 def perform_full_audit(url):
     if not url:
@@ -59,43 +75,22 @@ def perform_full_audit(url):
         if not domain:
             return {"error": "Could not extract domain from URL"}
 
-        return {
+        results = {
             "url": url,
-            "scanned_at": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'),
+            "timestamp": datetime.utcnow().isoformat() + "Z",
             "https_check": check_https(url),
             "secure_headers": check_headers(url),
             "open_ports": check_open_ports(domain),
             "cloud_storage_exposure": detect_cloud_storage(url)
         }
+
+        # Upload to GCS
+        path = upload_report_to_gcs(results, url)
+        results["report_path"] = f"gs://{BUCKET_NAME}/{path}"
+
+        # Publish to Pub/Sub
+        publish_to_pubsub(results)
+
+        return results
     except Exception as e:
         return {"error": f"Audit failed: {str(e)}"}
-
-
-# --- Cloud Function entry point ---
-def pubsub_entry(event, context):
-    try:
-        message = base64.b64decode(event['data']).decode('utf-8')
-        data = json.loads(message)
-        url = data.get('url')
-
-        if not url:
-            print("No URL provided in message")
-            return
-
-        audit_result = perform_full_audit(url)
-
-        # Save to Cloud Storage
-        storage_client = storage.Client()
-        bucket = storage_client.bucket("security-audit-portal")  # 🔁 Replace with your bucket name
-
-        domain_clean = urlparse(url).netloc.replace('.', '_').replace(':', '_')
-        timestamp = datetime.utcnow().strftime('%Y-%m-%dT%H-%M-%S')
-        filename = f"results/{timestamp}__{domain_clean}.json"
-
-        blob = bucket.blob(filename)
-        blob.upload_from_string(json.dumps(audit_result, indent=2), content_type='application/json')
-
-        print(f"Audit complete and saved to {filename}")
-
-    except Exception as e:
-        print(f"Function failed: {str(e)}")
