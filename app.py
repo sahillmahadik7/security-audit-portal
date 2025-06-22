@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 from scanner import perform_full_audit
 import traceback
+import os
 
 app = Flask(__name__)
 
@@ -35,5 +36,7 @@ def not_found(error):
 def internal_error(error):
     return jsonify({"error": "Internal server error"}), 500
 
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 8080))  # default to 8080
+    app.run(host="0.0.0.0", port=port)
