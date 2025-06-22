@@ -1,10 +1,14 @@
-#importing all dependencies
+import base64
+import json
 import requests
 import socket
 import validators
 from urllib.parse import urlparse
+from google.cloud import storage
+from datetime import datetime
 
-#function for checking the http header is secure or not :
+
+# --- Audit Functions ---
 def check_https(url):
     return url.startswith("https://")
 
@@ -25,20 +29,21 @@ def check_headers(url):
         return {"error": f"Unexpected error: {str(e)}"}
 
 
-# Thic functions checks if there is any open port or not :
 def check_open_ports(domain, ports=[80, 443, 21, 22]):
     open_ports = []
     for port in ports:
         try:
-            with socket.create_connection((domain, port), timeout=3):  # this will create a connection between server and client on a single port at a time and see if it responds or not. If response came than that port is open else it is closed 
+            with socket.create_connection((domain, port), timeout=3):
                 open_ports.append(port)
         except:
             pass
     return open_ports
 
+
 def detect_cloud_storage(url):
     indicators = ["s3.amazonaws.com", "storage.googleapis.com", "blob.core.windows.net"]
     return any(indicator in url for indicator in indicators)
+
 
 def perform_full_audit(url):
     if not url:
@@ -48,7 +53,6 @@ def perform_full_audit(url):
         return {"error": "Invalid URL format"}
 
     try:
-        # Parse domain from URL
         parsed_url = urlparse(url)
         domain = parsed_url.netloc
 
@@ -56,6 +60,8 @@ def perform_full_audit(url):
             return {"error": "Could not extract domain from URL"}
 
         return {
+            "url": url,
+            "scanned_at": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'),
             "https_check": check_https(url),
             "secure_headers": check_headers(url),
             "open_ports": check_open_ports(domain),
@@ -63,3 +69,33 @@ def perform_full_audit(url):
         }
     except Exception as e:
         return {"error": f"Audit failed: {str(e)}"}
+
+
+# --- Cloud Function entry point ---
+def pubsub_entry(event, context):
+    try:
+        message = base64.b64decode(event['data']).decode('utf-8')
+        data = json.loads(message)
+        url = data.get('url')
+
+        if not url:
+            print("No URL provided in message")
+            return
+
+        audit_result = perform_full_audit(url)
+
+        # Save to Cloud Storage
+        storage_client = storage.Client()
+        bucket = storage_client.bucket("YOUR_BUCKET_NAME")  # 🔁 Replace with your bucket name
+
+        domain_clean = urlparse(url).netloc.replace('.', '_').replace(':', '_')
+        timestamp = datetime.utcnow().strftime('%Y-%m-%dT%H-%M-%S')
+        filename = f"results/{timestamp}__{domain_clean}.json"
+
+        blob = bucket.blob(filename)
+        blob.upload_from_string(json.dumps(audit_result, indent=2), content_type='application/json')
+
+        print(f"Audit complete and saved to {filename}")
+
+    except Exception as e:
+        print(f"Function failed: {str(e)}")
