@@ -1,8 +1,15 @@
 from flask import Flask, request, jsonify, render_template
-from scanner import perform_full_audit
+from google.cloud import pubsub_v1
 import traceback
+import os
+import json
 
 app = Flask(__name__)
+
+# Setup Pub/Sub
+publisher = pubsub_v1.PublisherClient()
+project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
+topic_path = publisher.topic_path(project_id, "security-audit-portal")
 
 @app.route("/", methods=["GET"])
 def home():
@@ -11,33 +18,24 @@ def home():
 @app.route("/scan", methods=["POST"])
 def scan():
     try:
-        # Check if request has JSON data
         if not request.is_json:
             return jsonify({"error": "Request must contain JSON data"}), 400
-        
+
         data = request.get_json()
-        if not data:
-            return jsonify({"error": "No JSON data received"}), 400
-            
-        url = data.get("url")
+        url = data.get("url", "").strip()
         if not url:
             return jsonify({"error": "Missing URL parameter"}), 400
 
-        # Strip whitespace from URL
-        url = url.strip()
-        
-        # Perform the audit
-        results = perform_full_audit(url)
-        
-        # Ensure the response is always JSON
-        return jsonify(results)
-        
+        # Publish to Pub/Sub
+        payload = json.dumps({"url": url}).encode("utf-8")
+        future = publisher.publish(topic_path, payload)
+        future.result()  # Ensure publish completes
+
+        return jsonify({"message": "Scan request submitted successfully"}), 200
+
     except Exception as e:
-        # Log the full error for debugging
         app.logger.error(f"Scan endpoint error: {str(e)}")
         app.logger.error(traceback.format_exc())
-        
-        # Return JSON error response
         return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 @app.errorhandler(404)
