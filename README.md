@@ -36,7 +36,7 @@ Built using:
 | 🔍 Security Scanner         | Scans HTTPS, headers, open ports, cloud links |
 | 📟 Real-Time JSON Reports   | Output shown directly on the webpage          |
 | ☁️ Google Cloud Integration | Stores JSON audit logs to Cloud Storage       |
-| 📩 GCP Pub/Sub (Optional)   | Publishes audit metadata to a topic           |
+| 📩 GCP Pub/Sub              | Publishes audit metadata to a topic           |
 | 📦 Containerized            | Deployed via Docker on Cloud Run              |
 
 ---
@@ -70,7 +70,7 @@ This project uses **Google Cloud Platform** services to make the app serverless,
 
 ### 🔹 Pub/Sub (Topic: `security-audit-portal`)
 
-* (Optional) Publishes a message with scan metadata
+* Publishes a message with scan metadata
 * Useful for triggering notifications, BigQuery ingestion, or external workflows
 
 ### 🔹 Cloud Build
