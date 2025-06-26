@@ -85,7 +85,7 @@ This project uses **Google Cloud Platform** services to make the app serverless,
 Below is a visual representation of how GCP services interact in this project:
 
 
-![Architecture Diagram](assets/image.png)
+![Architecture Diagram](assets/Architecture.png)
 ---
 
 ## ⚙️ Local Development
