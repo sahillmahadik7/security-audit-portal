@@ -145,8 +145,6 @@ Below images shows how the object files are stored in GCP and how the output app
 }
 ```
 
----
-
 ## 🛠️ Tech Stack
 
 * Python 3.10
