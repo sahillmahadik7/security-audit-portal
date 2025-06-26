@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 import os
 
+# GCP integrations
 from google.cloud import storage, pubsub_v1
 
 # Constants (use these names in GCP)
@@ -13,9 +14,11 @@ BUCKET_NAME = "security-audit-portal"
 TOPIC_NAME = "security-audit-portal"
 PROJECT_ID = os.environ.get("GCP_PROJECT", "security-audit-portal")  # Replace in GCP UI
 
+# Check if HTTPS is used
 def check_https(url):
     return url.startswith("https://")
 
+# Check for required HTTP security headers
 def check_headers(url):
     required_headers = ['Content-Security-Policy', 'X-Frame-Options']
     try:
@@ -31,6 +34,7 @@ def check_headers(url):
     except Exception as e:
         return {"error": f"Unexpected error: {str(e)}"}
 
+# Check common open ports on the domain
 def check_open_ports(domain, ports=[80, 443, 21, 22]):
     open_ports = []
     for port in ports:
@@ -41,10 +45,12 @@ def check_open_ports(domain, ports=[80, 443, 21, 22]):
             pass
     return open_ports
 
+# Detect whether the URL points to known cloud storage providers
 def detect_cloud_storage(url):
     indicators = ["s3.amazonaws.com", "storage.googleapis.com", "blob.core.windows.net"]
     return any(indicator in url for indicator in indicators)
 
+# Upload scan report to Google Cloud Storage
 def upload_report_to_gcs(data, url):
     timestamp = datetime.utcnow().strftime('%Y-%m-%dT%H-%M-%SZ')
     parsed = urlparse(url)
@@ -56,11 +62,13 @@ def upload_report_to_gcs(data, url):
     blob.upload_from_string(json.dumps(data, indent=2), content_type='application/json')
     return filename
 
+# Publish scan result to pub/sub
 def publish_to_pubsub(message_dict):
     publisher = pubsub_v1.PublisherClient()
     topic_path = publisher.topic_path(PROJECT_ID, TOPIC_NAME)
     publisher.publish(topic_path, json.dumps(message_dict).encode("utf-8"))
 
+# MAin code to perform full audit
 def perform_full_audit(url):
     if not url:
         return {"error": "URL is required"}
