@@ -115,16 +115,16 @@ Below images shows how the object files are stored in GCP and how the output app
 ![Output Image](assets/output1.png)
 
 ### This is how the result will appear on the web
-![Output Image](asstes/output2.png)
+![Output Image](assets/output2.png)
 
 ### This is the pub/sub message in GCP after scan
-![Output Image](asstes/output3.png)
+![Output Image](assets/output3.png)
 
 ### This is how the object files (scan reports) are stored in buckets
-![Output Image](asstes/output4.png)
+![Output Image](assets/output4.png)
 
 ### This is how the object files looks like when open
-![Output Image](asstes/output5.png)
+![Output Image](assets/output5.png)
 
 ---
 
