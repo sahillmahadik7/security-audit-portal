@@ -107,6 +107,25 @@ docker build -t security-audit-portal .
 docker run -p 8080:8080 security-audit-portal
 ```
 
+## 🖥️ Output
+
+Below images shows how the object files are stored in GCP and how the output appears on web 
+
+### This is where the reports of scans are stored
+![Output Image](asstes/output1)
+
+### This is how the result will appear on the web
+![Output Image](asstes/output2)
+
+### This is the pub/sub message in GCP after scan
+![Output Image](asstes/output3)
+
+### This is how the object files (scan reports) are stored in buckets
+![Output Image](asstes/output4)
+
+### This is how the object files looks like when open
+![Output Image](asstes/output5)
+
 ---
 
 ## 📟 Sample JSON Report
